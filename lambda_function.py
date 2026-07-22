@@ -9,6 +9,7 @@ def lambda_handler(event, context):
     for record in event["Records"]:
         payload = json.loads(record["body"])
 
+        #adding records in dynamo DB
         item = {
             "patient_id": payload["patient_id"],
             "timestamp": Decimal(str(int(time.time() * 1000))),
