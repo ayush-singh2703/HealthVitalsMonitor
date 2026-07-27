@@ -1,51 +1,42 @@
 import json
-import random
 import time
+import random
 
 import paho.mqtt.client as mqtt
 
-BROKER = "localhost"
-PORT = 1883
-PATIENT = "patient-001"
-TOPIC = f"patients/{PATIENT}/vitals"
-INTERVAL = 3
+LOCAL_BROKER = "localhost"
+LOCAL_PORT = 1883
+PATIENT_ID = "patient-001"
+PUBLISH_INTERVAL_SEC = 3
 
-client = mqtt.Client(client_id="vitals-simulator")
-client.connect(BROKER, PORT, keepalive=60)
-client.loop_start()
 
-print(f"Publishing vitals for {PATIENT} to local topic {TOPIC}")
-print("Press Ctrl+C to stop\n")
+def generate_vitals(pid):
+    return {
+        "patient_id": pid,
+        "heart_rate": round(max(40, min(180, random.gauss(75, 8))), 1),
+        "spo2": round(max(80, min(100, random.gauss(97.5, 1.0))), 1),
+        "temperature": round(max(35, min(41, random.gauss(36.7, 0.25))), 1),
+        "systolic_bp": round(max(80, min(200, random.gauss(112, 10))), 1),
+        "resp_rate": round(max(8, min(35, random.gauss(15, 2))), 1),
+    }
+
+
+client = mqtt.Client(client_id="sensor-simulator")
+client.connect(LOCAL_BROKER, LOCAL_PORT, keepalive=60)
+
+print(f"[SIM] Publishing simulated vitals for {PATIENT_ID} every {PUBLISH_INTERVAL_SEC}s")
+print("[SIM] Press Ctrl+C to stop.\n")
 
 msg_count = 0
-
 try:
     while True:
-        payload = {
-            "patient_id": PATIENT,
-            "heart_rate": round(random.uniform(50, 140), 1),
-            "spo2": round(random.uniform(85, 100), 1),
-            "temperature": round(random.uniform(35.0, 40.5), 1),
-            "systolic_bp": round(random.uniform(90, 180), 1),
-            "resp_rate": round(random.uniform(10, 30), 1),
-            "msg_count": msg_count,
-        }
-
-        client.publish(TOPIC, json.dumps(payload), qos=1)
-
-        print(
-            f"[PUB #{msg_count}] "
-            f"HR={payload['heart_rate']}  "
-            f"SpO2={payload['spo2']}  "
-            f"Temp={payload['temperature']}  "
-            f"BP={payload['systolic_bp']}  "
-            f"RR={payload['resp_rate']}"
-        )
-
+        payload = generate_vitals(PATIENT_ID)
+        topic = f"patients/{PATIENT_ID}/vitals"
+        client.publish(topic, json.dumps(payload))
         msg_count += 1
-        time.sleep(INTERVAL)
+        print(f"[SIM] #{msg_count} -> {topic} : {payload}")
+        time.sleep(PUBLISH_INTERVAL_SEC)
 
 except KeyboardInterrupt:
-    print(f"\nStopped. Published {msg_count} readings.")
-    client.loop_stop()
+    print("\n[SIM] Shutting down.")
     client.disconnect()
